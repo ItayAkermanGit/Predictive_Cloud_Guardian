@@ -1,0 +1,97 @@
+# ── Python bytecode / native ────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+.Python
+
+# ── Virtual environments ────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ── Tooling caches ──────────────────────────────────
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+nosetests.xml
+.cache/
+.hypothesis/
+
+# ── Build / packaging artifacts ─────────────────────
+build/
+dist/
+sdist/
+wheels/
+*.egg
+*.egg-info/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+MANIFEST
+
+# ── Jupyter / notebooks ─────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ── IDE / editor / OS ───────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Local AI / agent assistants (NEVER commit) ──────
+.claude/
+.cursor/
+.aider*
+.continue/
+
+# ── Secrets / environment ───────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+secrets.yaml
+secrets.json
+
+# ── ML model artifacts and data ─────────────────────
+data/raw/
+data/processed/
+data/models/
+*.pkl
+*.pt
+*.pth
+*.onnx
+*.h5
+*.ckpt
+*.safetensors
+
+# ── Databases / runtime state ───────────────────────
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# ── Logs ────────────────────────────────────────────
+*.log
+logs/
+
+# ── Misc ────────────────────────────────────────────
+*.bak
+*.tmp
+*.temp
