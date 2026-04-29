@@ -1,9 +1,4 @@
-"""Unit tests for linear interpolation (Problem 5).
-
-Verifies the proposal's contract: interior NaNs become linearly
-interpolated values; boundary NaNs are anchored to the nearest valid
-sample; the input is never mutated.
-"""
+# Unit tests for linear interpolation.
 
 from __future__ import annotations
 
@@ -29,7 +24,7 @@ def test_interior_nan_linearly_interpolated() -> None:
 
 
 def test_multi_step_gap_interpolated_proportionally() -> None:
-    # Three NaNs between 0 and 1 → expect 0.25, 0.5, 0.75.
+    # Three NaNs between 0 and 1 -> 0.25, 0.5, 0.75.
     data = {m: [0.0, np.nan, np.nan, np.nan, 1.0] for m in METRIC_ORDER}
     out = interpolate_missing(_frame(data))
     for m in METRIC_ORDER:

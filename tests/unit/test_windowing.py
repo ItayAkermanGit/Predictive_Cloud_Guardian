@@ -1,4 +1,4 @@
-"""Unit tests for the windowing & tensor preparation layer (Problems 1, 7)."""
+# Unit tests for the windowing & tensor preparation layer.
 
 from __future__ import annotations
 
@@ -25,15 +25,14 @@ def _frame(length: int) -> pd.DataFrame:
     )
 
 
-# ----- to_feature_matrix --------------------------------------------- #
+# to_feature_matrix
 
 def test_feature_matrix_enforces_metric_order() -> None:
     df = _frame(5)
     df = df[list(reversed(METRIC_ORDER))]  # scramble columns
     matrix = to_feature_matrix(df)
     assert matrix.shape == (5, N_METRICS)
-    # Column 0 of the output MUST correspond to METRIC_ORDER[0] regardless
-    # of the input column order — that's the whole contract.
+    # Column 0 must be METRIC_ORDER[0] regardless of input order.
     assert matrix[0, 0] == pytest.approx(0.0)
     assert matrix[-1, 0] == pytest.approx(1.0)
 
@@ -44,7 +43,7 @@ def test_feature_matrix_missing_column_raises() -> None:
         to_feature_matrix(df)
 
 
-# ----- build_inference_window ---------------------------------------- #
+# build_inference_window
 
 def test_inference_window_takes_tail() -> None:
     df = _frame(100)
@@ -68,7 +67,7 @@ def test_inference_window_exact_length_succeeds() -> None:
     assert window.shape == (WINDOW_SIZE, N_METRICS)
 
 
-# ----- build_training_windows ---------------------------------------- #
+# build_training_windows
 
 def test_training_windows_count_with_stride_one() -> None:
     df = _frame(WINDOW_SIZE + 5)
@@ -79,7 +78,7 @@ def test_training_windows_count_with_stride_one() -> None:
 def test_training_windows_count_with_stride_two() -> None:
     df = _frame(WINDOW_SIZE + 6)
     windows = build_training_windows(df, stride=2)
-    # (66 - 60)//2 + 1 = 4
+    # (66 - 60) // 2 + 1 = 4
     assert windows.shape == (4, WINDOW_SIZE, N_METRICS)
 
 
@@ -94,7 +93,7 @@ def test_training_windows_invalid_stride() -> None:
         build_training_windows(_frame(WINDOW_SIZE + 5), stride=0)
 
 
-# ----- to_inference_tensor / to_training_tensor ---------------------- #
+# to_inference_tensor / to_training_tensor
 
 def test_inference_tensor_shape_and_dtype() -> None:
     arr = np.zeros((WINDOW_SIZE, N_METRICS), dtype=np.float32)

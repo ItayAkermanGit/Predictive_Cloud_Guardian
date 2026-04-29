@@ -1,11 +1,6 @@
-"""End-to-end integration tests for the forecasting pipeline.
-
-These tests train a small LSTM forecaster on synthetic data for a few
-epochs and verify:
-    * loss decreases (the optimizer + AsymmetricLoss combo learns)
-    * inference produces tensors of the canonical shapes
-    * the inference output denormalizes into plausible original units
-"""
+# End-to-end integration tests for the forecasting pipeline.
+# Trains a small LSTM forecaster on synthetic data for a few epochs
+# and checks: loss decreases, inference shapes match, denorm is invertible.
 
 from __future__ import annotations
 
@@ -31,7 +26,7 @@ from pcg.training.train_lstm import TrainConfig, train_forecaster
 
 
 def _build_environment(minutes: int = 60 * 24):
-    """Generate synthetic data, fit a normalizer, and split train/val."""
+    # Generate synthetic data, fit a normalizer, and split train/val.
     frame = SyntheticMetricGenerator(
         SyntheticConfig(seed=11, missing_rate=0.02)
     ).generate(datetime(2026, 1, 1), minutes)
@@ -43,8 +38,7 @@ def _build_environment(minutes: int = 60 * 24):
 
 
 def test_training_loss_decreases_over_epochs() -> None:
-    """A modest training run on synthetic data should reduce training loss
-    over time. This is the most important learning-signal assertion."""
+    # A modest training run on synthetic data must reduce training loss.
     _, train_frame, val_frame, norm = _build_environment()
     train_ds = ForecastingDataset(train_frame, norm)
     val_ds = ForecastingDataset(val_frame, norm)
@@ -59,7 +53,6 @@ def test_training_loss_decreases_over_epochs() -> None:
 
     assert len(history.train_loss) == 3
     assert len(history.val_loss) == 3
-    # Last epoch loss should be lower than the first.
     assert history.train_loss[-1] < history.train_loss[0]
 
 
@@ -110,8 +103,8 @@ def test_attention_weights_sum_to_one_after_inference() -> None:
 
 
 def test_predicted_original_values_match_invertible_normalization() -> None:
-    """Manually invert the [0,1] prediction and confirm it equals
-    ``predicted_original`` from the Forecaster wrapper."""
+    # Manually invert the [0, 1] prediction and confirm it equals
+    # predicted_original from the Forecaster wrapper.
     frame, train_frame, _, norm = _build_environment()
     train_ds = ForecastingDataset(train_frame, norm)
     model = LSTMForecaster(hidden_size=32)
@@ -125,7 +118,6 @@ def test_predicted_original_values_match_invertible_normalization() -> None:
 
     out = Forecaster(model, norm).predict(prepared)
 
-    # Manual inversion using the fitted normalizer parameters.
     manual = np.empty_like(out.predicted_normalized)
     for i, metric in enumerate(METRIC_ORDER):
         mn = float(norm.mins[metric])

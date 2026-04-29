@@ -1,28 +1,15 @@
-"""Pair builder for supervised forecasting training.
-
-A forecasting dataset turns a single long time-series into many
-(input, target) pairs of shape:
-
-    input  : (WINDOW_SIZE=60, N_METRICS=4)
-    target : (HORIZON_MINUTES=15, N_METRICS=4)
-
-Generation logic
-----------------
-For each valid start index ``s``:
-    input  = matrix[s          : s + 60]
-    target = matrix[s + 60     : s + 60 + 15]
-
-The number of pairs is ``(T - 60 - 15) // stride + 1`` for series length
-``T``. With stride=1 we get every minute as a possible window start —
-the densest usable signal.
-
-Pre-processing parity with inference
-------------------------------------
-The dataset applies the exact same Phase-2 pipeline used at inference
-(interpolate → smooth → normalizer.transform → matrix). That guarantees
-a model trained here sees the same value distribution it will face in
-production, eliminating one of the most common train/serve skew bugs.
-"""
+# Builds (input_window, target_window) tensor pairs for the forecaster.
+#
+#   input  : (WINDOW_SIZE=60, N_METRICS=4)
+#   target : (HORIZON_MINUTES=15, N_METRICS=4)
+#
+# For each start index s:
+#   input  = matrix[s : s + 60]
+#   target = matrix[s + 60 : s + 60 + 15]
+#
+# We apply the same preprocessing the inference path uses
+# (interpolate -> smooth -> normalize) so the training distribution
+# matches what the model will see in production.
 
 from __future__ import annotations
 
@@ -39,18 +26,7 @@ from ..data.windowing import to_feature_matrix
 
 
 class ForecastingDataset(Dataset):
-    """Materializes (input_window, target_window) tensor pairs from a frame.
-
-    Args:
-        frame:       Raw DataFrame with at least the METRIC_ORDER columns
-                     and a DatetimeIndex.
-        normalizer:  A *fitted* MinMaxNormalizer (fit it on training data
-                     once, then reuse for every dataset to keep distributions
-                     consistent).
-        window_size: Input length in samples. Defaults to WINDOW_SIZE (60).
-        horizon:     Output length in samples. Defaults to HORIZON_MINUTES (15).
-        stride:      Step between consecutive window starts.
-    """
+    # Materializes (input_window, target_window) pairs from a DataFrame.
 
     def __init__(
         self,
@@ -63,9 +39,7 @@ class ForecastingDataset(Dataset):
         if window_size <= 0 or horizon <= 0 or stride <= 0:
             raise ValueError("window_size, horizon, stride must be positive")
 
-        # Apply the same preprocessing that inference uses, in the same
-        # order. Skipping any of these steps here is an instant train/serve
-        # skew bug.
+        # Same preprocessing the inference path uses, in the same order.
         clean = interpolate_missing(frame)
         smoothed = smooth(clean)
         scaled = normalizer.transform(smoothed)
@@ -73,7 +47,6 @@ class ForecastingDataset(Dataset):
         matrix = to_feature_matrix(scaled)  # (T, N_METRICS)
 
         if matrix.shape[1] != N_METRICS:
-            # Defensive — should never trip if METRIC_ORDER is honored.
             raise ValueError(
                 f"feature matrix has {matrix.shape[1]} columns, expected {N_METRICS}"
             )
@@ -91,10 +64,6 @@ class ForecastingDataset(Dataset):
             )
         self._n_pairs = usable // stride + 1
 
-    # --------------------------------------------------------------- #
-    # PyTorch Dataset API
-    # --------------------------------------------------------------- #
-
     def __len__(self) -> int:
         return self._n_pairs
 
@@ -106,19 +75,13 @@ class ForecastingDataset(Dataset):
         y = self._matrix[
             start + self._window_size : start + self._window_size + self._horizon
         ]
-        # Float32 to match the canonical inference tensor dtype.
         return (
             torch.from_numpy(np.ascontiguousarray(x, dtype=np.float32)).float(),
             torch.from_numpy(np.ascontiguousarray(y, dtype=np.float32)).float(),
         )
 
-    # --------------------------------------------------------------- #
-    # Introspection helpers (used by tests, scripts, defense demos)
-    # --------------------------------------------------------------- #
-
     @property
     def metric_order(self) -> tuple[str, ...]:
-        """The column ordering encoded in every produced tensor."""
         return METRIC_ORDER
 
     @property

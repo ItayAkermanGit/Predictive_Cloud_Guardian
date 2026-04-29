@@ -1,4 +1,4 @@
-"""Unit tests for forecasting metrics."""
+# Unit tests for forecasting metrics.
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from pcg.training.metrics import (
 )
 
 
-# ----- mae / rmse --------------------------------------------------- #
+# mae / rmse
 
 def test_mae_zero_for_identical_inputs() -> None:
     y = torch.linspace(0.0, 1.0, 60)
@@ -38,12 +38,11 @@ def test_shape_mismatch_raises() -> None:
         mae(torch.zeros(3), torch.zeros(4))
 
 
-# ----- threshold_recall --------------------------------------------- #
+# threshold_recall
 
 def test_recall_perfect_when_all_breaches_predicted() -> None:
     y_pred = torch.tensor([0.95, 0.10, 0.96, 0.11])
     y_true = torch.tensor([0.96, 0.05, 0.97, 0.07])
-    # Every actual > 0.9 was also predicted > 0.9.
     assert threshold_recall(y_pred, y_true, 0.9) == pytest.approx(1.0)
 
 
@@ -54,7 +53,7 @@ def test_recall_zero_when_all_breaches_missed() -> None:
 
 
 def test_recall_returns_one_when_no_positives_in_truth() -> None:
-    """No true positives → recall is vacuously 1 (sklearn convention)."""
+    # No true positives -> recall is vacuously 1 (sklearn convention).
     y_pred = torch.tensor([0.5, 0.6])
     y_true = torch.tensor([0.1, 0.2])
     assert threshold_recall(y_pred, y_true, 0.9) == pytest.approx(1.0)
@@ -63,13 +62,11 @@ def test_recall_returns_one_when_no_positives_in_truth() -> None:
 def test_recall_partial_hit_rate() -> None:
     y_pred = torch.tensor([0.95, 0.10, 0.20, 0.96])
     y_true = torch.tensor([0.99, 0.05, 0.97, 0.99])
-    # actual_pos at indices 0, 2, 3.
-    # pred_pos at  indices 0, 3.
-    # TP = 2, FN = 1 → recall = 2/3
+    # actual_pos at 0, 2, 3; pred_pos at 0, 3 -> TP=2, FN=1 -> recall=2/3.
     assert threshold_recall(y_pred, y_true, 0.9) == pytest.approx(2 / 3)
 
 
-# ----- threshold_false_positive_rate -------------------------------- #
+# threshold_false_positive_rate
 
 def test_fpr_zero_when_no_predicted_positives() -> None:
     y_pred = torch.tensor([0.1, 0.2, 0.3])
@@ -80,12 +77,12 @@ def test_fpr_zero_when_no_predicted_positives() -> None:
 def test_fpr_when_safe_inputs_misclassified() -> None:
     y_pred = torch.tensor([0.95, 0.95, 0.10])
     y_true = torch.tensor([0.10, 0.20, 0.30])
-    # All actuals are negative; 2 of 3 predicted as positive → FPR = 2/3.
+    # All actuals negative; 2 of 3 predicted as positive -> FPR = 2/3.
     fpr = threshold_false_positive_rate(y_pred, y_true, 0.9)
     assert fpr == pytest.approx(2 / 3)
 
 
-# ----- ForecastMetrics aggregate ------------------------------------ #
+# ForecastMetrics aggregate
 
 def test_forecast_metrics_aggregate() -> None:
     y_pred = torch.tensor([0.95, 0.10, 0.20, 0.96])

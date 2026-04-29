@@ -1,11 +1,5 @@
-"""End-to-end tests for the data pipeline.
-
-These exercise the full flow that an inference call will use in later
-phases: TSDB query → interpolate → smooth → normalize → window → tensor.
-The goal is to verify the canonical tensor contract
-``(1, WINDOW_SIZE, N_METRICS)`` is produced regardless of upstream noise
-and missing data.
-"""
+# End-to-end tests for the data pipeline.
+# Exercises TSDB query -> interpolate -> smooth -> normalize -> window -> tensor.
 
 from __future__ import annotations
 
@@ -49,8 +43,7 @@ def _seeded_environment(
     client = InMemoryTSDBClient()
     client.upsert(server_id, df)
 
-    # The normalizer must be fitted on a NaN-free version, otherwise an
-    # entirely-missing column would crash. Drop NaNs for fit only.
+    # Fit on a NaN-free copy so an entirely-missing column doesn't crash fit.
     norm = MinMaxNormalizer().fit(df.dropna())
     return client, norm, df
 
@@ -70,7 +63,7 @@ def test_pipeline_produces_canonical_tensor_shape() -> None:
 
 
 def test_pipeline_output_is_finite_with_missing_data() -> None:
-    """Even with ~10% missing samples, the tensor must be NaN-free."""
+    # Even with ~10% missing samples, the tensor must be NaN-free.
     client, norm, df = _seeded_environment(minutes=200, missing_rate=0.10)
     pipeline = DataPipeline(client, norm)
     end = df.index[-1].to_pydatetime()
@@ -79,8 +72,8 @@ def test_pipeline_output_is_finite_with_missing_data() -> None:
 
 
 def test_pipeline_output_is_roughly_in_unit_range() -> None:
-    """After normalization, healthy synthetic data sits within [0,1] modulo
-    a small smoothing tail. Hard bounds confirm the [0,1] contract."""
+    # After normalization, healthy synthetic data sits within [0, 1] modulo
+    # a small smoothing tail.
     client, norm, df = _seeded_environment(minutes=200)
     pipeline = DataPipeline(client, norm)
     end = df.index[-1].to_pydatetime()
@@ -99,7 +92,7 @@ def test_pipeline_raises_for_unknown_server() -> None:
 
 
 def test_pipeline_raises_when_history_is_too_short() -> None:
-    """Less than WINDOW_SIZE rows is exactly the cold-start case."""
+    # Less than WINDOW_SIZE rows is exactly the cold-start case.
     client, norm, df = _seeded_environment(minutes=30)
     pipeline = DataPipeline(client, norm)
     end = df.index[-1].to_pydatetime()
@@ -108,12 +101,8 @@ def test_pipeline_raises_when_history_is_too_short() -> None:
 
 
 def test_pipeline_reflects_injected_failure_in_tensor() -> None:
-    """A clearly anomalous CPU spike must show up as elevated values in
-    the cpu_util column of the produced tensor — this is the integration
-    point the autoencoder will rely on in Phase 3."""
-    # Series covers 200 minutes; the inference window pulls minutes 140..199.
-    # We inject the failure at the END of the series so it lives at the END
-    # of the window — that mirrors how a real fault would look at inference.
+    # The series covers 200 minutes; the inference window pulls rows 140..199.
+    # Inject the failure at the END so it lives at the end of the window.
     failures = [
         FailureInjection(
             metric="cpu_util",
@@ -129,8 +118,7 @@ def test_pipeline_reflects_injected_failure_in_tensor() -> None:
 
     cpu_idx = METRIC_ORDER.index("cpu_util")
     cpu_window = prepared.tensor.squeeze(0).numpy()[:, cpu_idx]
-    # Last 20 minutes of the window correspond to the failure period; first
-    # 20 minutes are healthy. The lift should be clearly visible.
+    # Last 20 minutes are the failure; first 20 are healthy.
     assert cpu_window[-20:].mean() - cpu_window[:20].mean() > 0.3
 
 

@@ -1,4 +1,4 @@
-"""Unit tests for moving-average smoothing (Problem 5)."""
+# Unit tests for moving-average smoothing.
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def test_single_spike_is_attenuated_by_window_5() -> None:
     df = _frame(10, value=0.0)
     df.iloc[5] = 1.0  # one-sample spike at index 5
     out = smooth(df, window=5)
-    # Trailing window covers indices 1..5 → mean = (0+0+0+0+1)/5 = 0.2.
+    # Trailing window covers indices 1..5 -> mean = (0+0+0+0+1)/5 = 0.2.
     for m in METRIC_ORDER:
         assert out[m].iloc[5] == pytest.approx(0.2)
 

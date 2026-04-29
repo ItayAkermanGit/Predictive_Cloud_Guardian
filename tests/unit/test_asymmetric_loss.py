@@ -1,4 +1,4 @@
-"""Unit tests for AsymmetricLoss (proposal Problem 3)."""
+# Unit tests for AsymmetricLoss.
 
 from __future__ import annotations
 
@@ -11,10 +11,10 @@ from pcg.core.constants import ASYMMETRIC_LOSS_ALPHA
 from pcg.models.losses import AsymmetricLoss
 
 
-# ----- regression mode --------------------------------------------- #
+# regression mode
 
 def test_alpha_one_equals_mse() -> None:
-    """With alpha=1, the loss must collapse to plain MSE."""
+    # With alpha=1 the loss must collapse to plain MSE.
     torch.manual_seed(0)
     y_pred = torch.randn(8, 15, 4)
     y_true = torch.randn(8, 15, 4)
@@ -24,8 +24,8 @@ def test_alpha_one_equals_mse() -> None:
 
 
 def test_false_negative_costs_alpha_times_more_than_false_positive() -> None:
-    """Two equal-magnitude residuals, opposite signs:
-        FN (under-prediction) loss should be alpha × FP (over-prediction)."""
+    # Two equal-magnitude residuals, opposite signs:
+    # FN (under-prediction) loss should be alpha * FP (over-prediction).
     alpha = 10.0
     loss_fn = AsymmetricLoss(alpha=alpha)
 
@@ -41,7 +41,7 @@ def test_false_negative_costs_alpha_times_more_than_false_positive() -> None:
 
 
 def test_default_alpha_matches_constants() -> None:
-    """The default ALPHA must equal the project-wide constant (=10)."""
+    # Default alpha must equal the project-wide constant (=10).
     assert AsymmetricLoss().alpha == ASYMMETRIC_LOSS_ALPHA
 
 
@@ -52,17 +52,17 @@ def test_zero_residual_zero_loss() -> None:
 
 
 def test_gradient_pushes_predictions_upward_under_under_prediction() -> None:
-    """When the model under-predicts, the gradient on y_pred must be
-    NEGATIVE (so optimizer step y_pred -= lr*grad pushes y_pred up)."""
+    # When the model under-predicts the gradient on y_pred must be negative
+    # so optimizer step y_pred -= lr*grad pushes y_pred up.
     y_pred = torch.zeros(1, requires_grad=True)
     y_true = torch.ones(1)
     AsymmetricLoss(alpha=10.0)(y_pred, y_true).backward()
-    # ∂L/∂y_pred = -2 * alpha * (y_true - y_pred) = -2 * 10 * 1 = -20
+    # dL/dy_pred = -2 * alpha * (y_true - y_pred) = -2 * 10 * 1 = -20
     assert y_pred.grad.item() == pytest.approx(-20.0)
 
 
 def test_gradient_for_over_prediction_uses_weight_one() -> None:
-    """Symmetric to above; here weight=1, so grad = -2 * (-1) = +2."""
+    # Symmetric to above; weight=1, so grad = -2 * (-1) = +2.
     y_pred = torch.ones(1, requires_grad=True)
     y_true = torch.zeros(1)
     AsymmetricLoss(alpha=10.0)(y_pred, y_true).backward()
@@ -90,7 +90,7 @@ def test_reduction_sum_returns_total() -> None:
     assert sum_loss == pytest.approx(mean_loss * 4)
 
 
-# ----- binary mode -------------------------------------------------- #
+# binary mode
 
 def test_binary_mode_alpha_one_equals_bce() -> None:
     p = torch.tensor([0.2, 0.7, 0.9])
@@ -101,8 +101,8 @@ def test_binary_mode_alpha_one_equals_bce() -> None:
 
 
 def test_binary_mode_penalizes_missed_positives_more() -> None:
-    """Same probability error magnitude on both classes; the y=1 case
-    must contribute alpha-times more to the loss."""
+    # Same probability error magnitude on both classes; the y=1 case
+    # contributes alpha-times more to the loss.
     alpha = 10.0
     loss_fn = AsymmetricLoss(alpha=alpha, mode="binary")
 

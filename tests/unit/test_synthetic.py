@@ -1,4 +1,4 @@
-"""Unit tests for the synthetic metric generator."""
+# Unit tests for the synthetic metric generator.
 
 from __future__ import annotations
 
@@ -73,7 +73,6 @@ def test_failure_injection_lifts_only_target_metric() -> None:
     during_cpu = df["cpu_util"].iloc[30:40].mean()
     assert during_cpu - pre_cpu > 0.5
 
-    # Other metrics should NOT be affected.
     pre_mem = df["mem_util"].iloc[20:30].mean()
     during_mem = df["mem_util"].iloc[30:40].mean()
     assert abs(during_mem - pre_mem) < 0.2

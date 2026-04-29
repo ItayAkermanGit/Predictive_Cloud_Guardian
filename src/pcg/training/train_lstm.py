@@ -1,29 +1,5 @@
-"""Training loop for the LSTM+attention forecaster.
-
-Design notes
-------------
-Single-process, deterministic, CPU-friendly. We deliberately keep the
-loop short and explicit so an examiner can follow it line by line:
-
-    optimizer.zero_grad() → forward → AsymmetricLoss → backward → step
-
-The trainer returns a small ``TrainHistory`` so callers (tests, scripts)
-can assert that the loss decreased and that early stopping triggered
-as expected.
-
-Why Adam
---------
-Adam adapts per-parameter learning rates; for an LSTM with a few
-thousand weights it converges much faster than SGD on small datasets,
-and we don't have time on a college laptop to babysit a learning rate
-schedule. Default lr=1e-3 is the standard starting point.
-
-Why a single optimizer for all parameters
------------------------------------------
-The attention layer has only ``hidden_size² + hidden_size`` parameters —
-a tiny fraction of the LSTM. Splitting optimizers gains nothing and
-loses gradient-norm coherence between encoder and attention.
-"""
+# Training loop for the LSTM+attention forecaster.
+# Uses Adam + AsymmetricLoss(alpha=10) and gradient clipping.
 
 from __future__ import annotations
 
@@ -42,13 +18,7 @@ from ..models.losses import AsymmetricLoss
 
 @dataclass
 class TrainConfig:
-    """Hyperparameters for ``train_forecaster``.
-
-    Defaults are chosen to converge in a few seconds on a CPU using the
-    synthetic generator — enough to demonstrate that loss decreases and
-    that AsymmetricLoss biases the model upward, without committing the
-    student to a multi-hour training run for every test.
-    """
+    # Hyperparameters for train_forecaster.
 
     epochs: int = 20
     batch_size: int = 64
@@ -61,7 +31,7 @@ class TrainConfig:
 
 @dataclass
 class TrainHistory:
-    """Per-epoch losses returned by ``train_forecaster``."""
+    # Per-epoch losses returned by train_forecaster.
 
     train_loss: list[float] = field(default_factory=list)
     val_loss: list[float] = field(default_factory=list)
@@ -73,23 +43,10 @@ def train_forecaster(
     val_dataset: Optional[Dataset] = None,
     config: Optional[TrainConfig] = None,
 ) -> TrainHistory:
-    """Run the training loop for an LSTM forecaster.
-
-    Args:
-        model:          Any module returning ``(forecast, attn)`` from a
-                        ``(B, T, F)`` input. The attention output is
-                        ignored by the loss.
-        train_dataset:  PyTorch Dataset yielding ``(x, y)`` pairs.
-        val_dataset:    Optional Dataset for held-out evaluation.
-        config:         Hyperparameters; sensible defaults if omitted.
-
-    Returns:
-        TrainHistory with per-epoch losses.
-    """
+    # Run the training loop and return per-epoch losses.
     cfg = config or TrainConfig()
 
-    # Determinism — important for unit tests and for the project defense
-    # so the examiner sees identical numbers on a re-run.
+    # Determinism for tests / repeatable demos.
     _seed_everything(cfg.seed)
 
     device = torch.device(cfg.device)
@@ -144,10 +101,6 @@ def train_forecaster(
     return history
 
 
-# --------------------------------------------------------------------- #
-# helpers
-# --------------------------------------------------------------------- #
-
 def _eval_loss(
     model: nn.Module,
     loader: DataLoader,
@@ -167,12 +120,7 @@ def _eval_loss(
 
 
 def _seed_everything(seed: int) -> None:
-    """Seed every RNG that affects the training output we report.
-
-    ``torch.use_deterministic_algorithms(True)`` is intentionally NOT
-    enabled because it errors out on cuDNN paths the LSTM uses; for a
-    CPU-only training run, seeding torch / numpy / python is enough.
-    """
+    # Seed every RNG that affects training output we report.
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)

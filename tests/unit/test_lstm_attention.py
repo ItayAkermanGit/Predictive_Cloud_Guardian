@@ -1,4 +1,4 @@
-"""Unit tests for LSTMForecaster and AdditiveAttention."""
+# Unit tests for LSTMForecaster and AdditiveAttention.
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pcg.core.constants import HORIZON_MINUTES, N_METRICS, WINDOW_SIZE
 from pcg.models.lstm_attention import AdditiveAttention, LSTMForecaster
 
 
-# ----- AdditiveAttention -------------------------------------------- #
+# AdditiveAttention
 
 def test_attention_returns_correct_shapes() -> None:
     attn = AdditiveAttention(hidden_size=32)
@@ -20,15 +20,12 @@ def test_attention_returns_correct_shapes() -> None:
 
 
 def test_attention_weights_are_a_distribution_over_time() -> None:
-    """Softmax along the time axis must produce non-negative weights
-    that sum to 1 within each batch element."""
+    # Softmax along the time axis -> non-negative weights summing to 1.
     torch.manual_seed(0)
     attn = AdditiveAttention(hidden_size=16)
     h = torch.randn(4, 60, 16)
     _, weights = attn(h)
-    # All non-negative
     assert torch.all(weights >= 0)
-    # Sum to 1 along time
     sums = weights.sum(dim=-1)
     assert torch.allclose(sums, torch.ones(4), atol=1e-5)
 
@@ -44,7 +41,7 @@ def test_attention_invalid_hidden_size_raises() -> None:
         AdditiveAttention(hidden_size=0)
 
 
-# ----- LSTMForecaster ----------------------------------------------- #
+# LSTMForecaster
 
 def test_forward_pass_shapes() -> None:
     model = LSTMForecaster()
@@ -77,7 +74,7 @@ def test_forward_rejects_non_3d_input() -> None:
 
 
 def test_backward_runs_and_updates_parameters() -> None:
-    """A single optimization step must lower the loss on a constant target."""
+    # A few optimization steps should lower the loss on a constant target.
     torch.manual_seed(0)
     model = LSTMForecaster(hidden_size=16)
     x = torch.randn(8, WINDOW_SIZE, N_METRICS)
@@ -113,7 +110,7 @@ def test_invalid_constructor_args_raise() -> None:
 
 
 def test_attention_weights_remain_a_distribution_after_lstm() -> None:
-    """End-to-end check that the softmax invariant survives the LSTM stack."""
+    # End-to-end check that the softmax invariant survives the LSTM.
     torch.manual_seed(0)
     model = LSTMForecaster()
     x = torch.randn(2, WINDOW_SIZE, N_METRICS)
@@ -124,8 +121,7 @@ def test_attention_weights_remain_a_distribution_after_lstm() -> None:
 
 
 def test_two_inputs_yield_different_forecasts() -> None:
-    """Sanity check that the model is responsive to its input — a frozen
-    output across different inputs would silently mask a bug."""
+    # Sanity check: different inputs must produce different outputs.
     torch.manual_seed(0)
     model = LSTMForecaster(hidden_size=16)
     x_a = torch.randn(1, WINDOW_SIZE, N_METRICS)

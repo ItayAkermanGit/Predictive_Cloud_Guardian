@@ -1,4 +1,4 @@
-"""Unit tests for ForecastingDataset."""
+# Unit tests for ForecastingDataset.
 
 from __future__ import annotations
 
@@ -64,10 +64,10 @@ def test_dataset_metric_order_property() -> None:
 
 
 def test_dataset_consecutive_pairs_are_offset_by_stride() -> None:
-    """Pair `i+1` must start one sample after pair `i` when stride=1."""
+    # Pair i+1 must start one sample after pair i when stride=1.
     frame = _frame(WINDOW_SIZE + HORIZON_MINUTES + 10)
     ds = ForecastingDataset(frame, _normalizer(frame), stride=1)
     x0, _ = ds[0]
     x1, _ = ds[1]
-    # The last 59 rows of x0 must equal the first 59 rows of x1.
+    # Last 59 rows of x0 must equal first 59 rows of x1.
     assert torch.allclose(x0[1:], x1[:-1])

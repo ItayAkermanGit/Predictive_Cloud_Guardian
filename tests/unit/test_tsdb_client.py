@@ -1,4 +1,4 @@
-"""Unit tests for the in-memory TSDB client."""
+# Unit tests for the in-memory TSDB client.
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def test_upsert_then_query_window() -> None:
     qstart = start + timedelta(minutes=30)
     qend = start + timedelta(minutes=90)
     out = client.query("srv-1", qstart, qend)
-    # 60-minute span at 1-min cadence inclusive on both ends → 61 rows.
+    # 60-minute span at 1-min cadence inclusive on both ends -> 61 rows.
     assert len(out) == 61
     for m in METRIC_ORDER:
         assert m in out.columns
@@ -48,9 +48,8 @@ def test_upsert_merges_and_deduplicates() -> None:
     client.upsert("srv-1", b)
 
     out = client.query("srv-1", start, start + timedelta(minutes=90))
-    # A covers 0..59 (60 rows), B covers 30..89 (60 rows), 30..59 overlap
-    # → merged distinct timestamps span 0..89 = 90 rows. The query end is
-    # 11:30 but no sample exists at that exact minute, so it isn't included.
+    # A covers 0..59 (60 rows), B covers 30..89 (60 rows), overlap 30..59
+    # -> merged distinct timestamps span 0..89 = 90 rows.
     assert len(out) == 90
     assert out.index.is_unique
 

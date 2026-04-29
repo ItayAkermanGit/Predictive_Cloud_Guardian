@@ -1,16 +1,6 @@
-"""Online forecaster — runs a trained ``LSTMForecaster`` on prepared windows.
-
-What this layer adds over calling ``model(...)`` directly
---------------------------------------------------------
-1. Switches the module into eval mode and disables grad — the proposal's
-   per-minute latency budget can't afford autograd bookkeeping.
-2. Inverts the min-max normalization so callers see the prediction in
-   the SAME units they originally fed in (e.g. CPU 87.3% rather than
-   a [0,1] float). This is what makes the alert payload human-readable.
-3. Wraps everything in a small, immutable ``ForecastOutput`` schema so
-   downstream code (the Phase-4 controller) doesn't have to remember
-   numpy axis orderings.
-"""
+# Online forecaster wrapper around a trained LSTMForecaster.
+# Adds eval mode + no_grad, denormalizes the output to original units,
+# and returns a small ForecastOutput dataclass.
 
 from __future__ import annotations
 
@@ -33,36 +23,13 @@ from ..data.pipeline import PreparedWindow
 from ..models.lstm_attention import LSTMForecaster
 
 
-# --------------------------------------------------------------------- #
-# Output schema
-# --------------------------------------------------------------------- #
-
 @dataclass(frozen=True)
 class ForecastOutput:
-    """Result of a single forecast call.
-
-    Attributes:
-        server_id:           Echoed from the input PreparedWindow.
-        window_end:          Wall-clock end of the input window.
-        predicted_normalized:
-                             Shape ``(HORIZON_MINUTES, N_METRICS)``, in [0,1].
-                             Used by anomaly/threshold logic that operates
-                             on normalized units.
-        predicted_original:
-                             Shape ``(HORIZON_MINUTES, N_METRICS)``, in the
-                             original metric units. Used for human-readable
-                             alerts.
-        attention_weights:
-                             Shape ``(WINDOW_SIZE,)``. Useful for the
-                             defense demo: shows which past minutes the
-                             model "looked at" most.
-        forecast_timestamps:
-                             Wall-clock timestamps of each predicted step,
-                             aligned with ``predicted_*`` rows.
-        metric_order:
-                             Column ordering on axis 1 of the prediction
-                             arrays. Always ``METRIC_ORDER``.
-    """
+    # Result of a single forecast call.
+    # predicted_normalized:  (HORIZON_MINUTES, N_METRICS) in [0, 1].
+    # predicted_original:    (HORIZON_MINUTES, N_METRICS) in original units.
+    # attention_weights:     (WINDOW_SIZE,) softmax weights over the past.
+    # forecast_timestamps:   wall-clock timestamps for each forecast row.
 
     server_id: str
     window_end: datetime
@@ -96,18 +63,8 @@ class ForecastOutput:
             )
 
 
-# --------------------------------------------------------------------- #
-# Inference wrapper
-# --------------------------------------------------------------------- #
-
 class Forecaster:
-    """Bind a trained model + its normalizer for online use.
-
-    The class is deliberately stateless beyond holding the model and the
-    normalizer — it is safe to share a single Forecaster instance across
-    threads as long as the underlying PyTorch model is not being trained
-    elsewhere (no module-state mutation happens here).
-    """
+    # Bind a trained model + its normalizer for online use.
 
     def __init__(
         self,
@@ -116,14 +73,13 @@ class Forecaster:
         device: Optional[str] = None,
     ) -> None:
         self.device = torch.device(device or "cpu")
-        # eval() disables dropout/BN updates; we keep parameters frozen
-        # by wrapping forward() in torch.no_grad().
+        # eval() disables dropout/BN; no_grad on forward freezes parameters.
         self.model = model.to(self.device).eval()
         self.normalizer = normalizer
 
     @torch.no_grad()
     def predict(self, prepared: PreparedWindow) -> ForecastOutput:
-        """Forecast the next ``HORIZON_MINUTES`` from a prepared window."""
+        # Forecast the next HORIZON_MINUTES from a prepared window.
         x = prepared.tensor.to(self.device)
         forecast, attn = self.model(x)
         # forecast: (1, HORIZON_MINUTES, N_METRICS)
@@ -147,18 +103,9 @@ class Forecaster:
             forecast_timestamps=timestamps,
         )
 
-    # ------------------------------------------------------------- #
-    # helpers
-    # ------------------------------------------------------------- #
-
     def _invert_normalizer(self, normalized: np.ndarray) -> np.ndarray:
-        """Map [0,1] predictions back to original metric units.
-
-        For each metric column ``i``, we apply ``x * (max - min) + min``
-        with the per-metric ``min``/``max`` stored on the normalizer
-        artifact. Predictions outside [0,1] are kept (they signal an
-        out-of-distribution forecast and we don't want to hide it).
-        """
+        # Map [0, 1] predictions back to original metric units.
+        # Per metric column i: x * (max - min) + min.
         out = np.empty_like(normalized, dtype=np.float32)
         for i, metric in enumerate(METRIC_ORDER):
             mn = float(self.normalizer.mins[metric])

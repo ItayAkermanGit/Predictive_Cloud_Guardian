@@ -1,4 +1,4 @@
-"""Unit tests for the min-max normalizer (Problem 1)."""
+# Unit tests for the min-max normalizer.
 
 from __future__ import annotations
 
@@ -27,8 +27,7 @@ def test_fit_transform_maps_to_unit_range() -> None:
 
 
 def test_transform_uses_training_range_not_inference_range() -> None:
-    """Critical MLOps invariant: inference must reuse the *fitted* range
-    so that distributional shift between train and serve is observable."""
+    # Inference must reuse the fitted range so distribution shift is observable.
     train = _frame({m: [0.0, 100.0] for m in METRIC_ORDER})
     norm = MinMaxNormalizer().fit(train)
 
@@ -37,8 +36,8 @@ def test_transform_uses_training_range_not_inference_range() -> None:
 
     for m in METRIC_ORDER:
         assert out[m].iloc[0] == pytest.approx(0.5)
-        # Out-of-training-range value MUST stay >1 — this signal is what
-        # tells the autoencoder to flag an anomaly (Problem 2).
+        # Out-of-range value stays > 1 on purpose: the autoencoder uses
+        # this signal to flag anomalies.
         assert out[m].iloc[1] == pytest.approx(1.5)
 
 

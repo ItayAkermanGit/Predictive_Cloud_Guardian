@@ -1,21 +1,4 @@
-"""Forecasting metrics.
-
-The proposal lists three KPIs:
-
-    Recall              — the *operationally* important one. We compute it
-                          per-metric over threshold-crossing events. High
-                          recall = few missed failures = AsymmetricLoss
-                          working as intended.
-    False Positive rate — paired with recall to form the precision/recall
-                          trade-off curve.
-    MTTR (Mean Time To  — out of scope for the forecaster itself; that is
-    Repair)               an end-to-end alerting metric measured by the
-                          controller.
-
-This module exposes plain functions plus a ``ForecastMetrics`` aggregate
-that stores them together so callers (training loop, tests) can pass one
-object around.
-"""
+# Forecasting metrics: MAE, RMSE, threshold-based recall and FPR.
 
 from __future__ import annotations
 
@@ -25,23 +8,14 @@ import torch
 from torch import Tensor
 
 
-# --------------------------------------------------------------------- #
-# Per-metric scalar functions
-# --------------------------------------------------------------------- #
-
 def mae(y_pred: Tensor, y_true: Tensor) -> float:
-    """Mean Absolute Error. Lower is better; 0 means perfect."""
+    # Mean Absolute Error.
     _check_shape(y_pred, y_true)
     return torch.mean(torch.abs(y_pred - y_true)).item()
 
 
 def rmse(y_pred: Tensor, y_true: Tensor) -> float:
-    """Root Mean Squared Error.
-
-    Penalizes large mistakes more than MAE — useful as a sanity check
-    that the asymmetric loss is not letting outlier mispredictions slip
-    through.
-    """
+    # Root Mean Squared Error.
     _check_shape(y_pred, y_true)
     return torch.sqrt(torch.mean((y_pred - y_true) ** 2)).item()
 
@@ -51,20 +25,11 @@ def threshold_recall(
     y_true: Tensor,
     threshold: float,
 ) -> float:
-    """Recall over threshold-crossing events.
-
-    Definitions used here:
-        positive event   — any timestep where y_true exceeds ``threshold``.
-        true positive    — the model also predicted > threshold there.
-        false negative   — the model predicted ≤ threshold there.
-
-    Returns ``TP / (TP + FN)``. If there are no positives in y_true the
-    function returns 1.0 (vacuously perfect: nothing to miss). This is
-    the convention scikit-learn uses.
-
-    This is THE metric the proposal optimizes for via AsymmetricLoss
-    (alpha=10) — high recall on real failures.
-    """
+    # Recall over threshold-crossing events.
+    # positive    : y_true > threshold
+    # TP          : both pred and true above threshold
+    # FN          : true above threshold, pred not
+    # If there are no positives in y_true returns 1.0 (sklearn convention).
     _check_shape(y_pred, y_true)
     actual_pos = y_true > threshold
     pred_pos = y_pred > threshold
@@ -80,12 +45,7 @@ def threshold_false_positive_rate(
     y_true: Tensor,
     threshold: float,
 ) -> float:
-    """FP / (FP + TN) — proportion of safe moments mislabeled as failures.
-
-    Used alongside recall to monitor the cost paid for the asymmetric
-    loss: pushing recall up usually pushes FP up too. Watching both
-    keeps the trade-off honest.
-    """
+    # FP / (FP + TN) — fraction of safe moments mislabeled as breach.
     _check_shape(y_pred, y_true)
     actual_neg = y_true <= threshold
     pred_pos = y_pred > threshold
@@ -96,19 +56,9 @@ def threshold_false_positive_rate(
     return fp / (fp + tn)
 
 
-# --------------------------------------------------------------------- #
-# Aggregate
-# --------------------------------------------------------------------- #
-
 @dataclass(frozen=True)
 class ForecastMetrics:
-    """Bundle of metrics emitted by the training/eval loop.
-
-    ``recall`` and ``fpr`` are computed against a per-metric threshold
-    that the caller supplies — typically a [0,1] cutoff matching the
-    operational threshold in ``configs/thresholds.yaml`` after
-    normalization.
-    """
+    # Bundle of metrics emitted by the training/eval loop.
 
     mae: float
     rmse: float
@@ -129,10 +79,6 @@ class ForecastMetrics:
             fpr=threshold_false_positive_rate(y_pred, y_true, threshold),
         )
 
-
-# --------------------------------------------------------------------- #
-# Internal
-# --------------------------------------------------------------------- #
 
 def _check_shape(y_pred: Tensor, y_true: Tensor) -> None:
     if y_pred.shape != y_true.shape:
